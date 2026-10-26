@@ -50,6 +50,11 @@ transazione.
 - Il prezzo della riga è quello del prodotto al momento dell'ordine.
 - Annullare restituisce i pezzi al magazzino; un ordine spedito non si annulla.
 - Importi in `BigDecimal`, arrotondati al centesimo.
+- Sconto per quantità sulla riga (quantità totale): 1–9 pezzi 0%, 10–49 5%, da 50 10%.
+  Subtotale = prezzo × quantità meno lo sconto, arrotondato `HALF_UP`.
+- Totale merce = somma dei subtotali scontati; spedizione 9,90 € sotto 150,00 €,
+  gratuita da 150,00 €; totale da pagare = merce + spedizione
+  (piano: [docs/piani/sconti-quantita.md](docs/piani/sconti-quantita.md)).
 
 ## Usarlo come template (docente)
 

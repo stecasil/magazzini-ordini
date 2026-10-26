@@ -49,6 +49,32 @@ class PagineTest {
     }
 
     @Test
+    void ilDettaglioMostraScontoSpedizioneETotaleDaPagare() throws Exception {
+        // 10 x 3,20 € = 32,00 € meno 5% = 30,40 €; sotto 150 € → spedizione 9,90 € → 40,30 €
+        String dettaglio = mvc.perform(post("/ordini")
+                        .param("cliente", "Ferramenta Verdi")
+                        .param("righe[0].codice", "GUA-L")
+                        .param("righe[0].quantita", "10"))
+                .andExpect(status().is3xxRedirection())
+                .andReturn().getResponse().getRedirectedUrl();
+
+        mvc.perform(get(dettaglio))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("5 %")))
+                .andExpect(content().string(containsString("Totale merce")))
+                .andExpect(content().string(containsString("30,40 €")))
+                .andExpect(content().string(containsString("Spedizione")))
+                .andExpect(content().string(containsString("9,90 €")))
+                .andExpect(content().string(containsString("Totale da pagare")))
+                .andExpect(content().string(containsString("40,30 €")));
+
+        mvc.perform(get("/ordini"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Totale da pagare")))
+                .andExpect(content().string(containsString("40,30 €")));
+    }
+
+    @Test
     void ordineInesistente() throws Exception {
         mvc.perform(get("/ordini/9999"))
                 .andExpect(status().isNotFound());

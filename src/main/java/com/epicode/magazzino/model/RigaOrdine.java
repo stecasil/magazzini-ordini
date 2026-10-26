@@ -13,6 +13,8 @@ import java.math.RoundingMode;
 @Entity
 public class RigaOrdine {
 
+    private static final BigDecimal CENTO = BigDecimal.valueOf(100);
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -43,9 +45,28 @@ public class RigaOrdine {
         quantita += altri;
     }
 
-    /** Prezzo unitario per quantità, arrotondato al centesimo. */
+    /** Sconto per quantità sulla riga (quantità totale, anche se aggiunta in più volte). */
+    public int percentualeSconto() {
+        if (quantita >= 50) {
+            return 10;
+        }
+        if (quantita >= 10) {
+            return 5;
+        }
+        return 0;
+    }
+
+    /** Prezzo unitario per quantità, senza sconto. */
+    public BigDecimal importoLordo() {
+        return prezzoUnitario.multiply(BigDecimal.valueOf(quantita))
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /** Importo lordo meno lo sconto, arrotondato al centesimo (HALF_UP). */
     public BigDecimal subtotale() {
         return prezzoUnitario.multiply(BigDecimal.valueOf(quantita))
+                .multiply(BigDecimal.valueOf(100 - percentualeSconto()))
+                .divide(CENTO)
                 .setScale(2, RoundingMode.HALF_UP);
     }
 

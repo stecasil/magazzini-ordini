@@ -42,7 +42,9 @@ class OrdineServiceTest {
                 new NuovoOrdine.Riga("T-MART", 1))));
 
         assertNotNull(ordine.getId());
-        assertEquals(new BigDecimal("25.00"), ordine.totale());
+        // 25,00 € di merce: sotto 150,00 € si pagano 9,90 € di spedizione
+        assertEquals(new BigDecimal("25.00"), ordine.totaleMerce());
+        assertEquals(new BigDecimal("34.90"), ordine.totaleDaPagare());
         assertEquals(16, prodotti.findByCodice("T-VITI").orElseThrow().getDisponibili());
         assertEquals(2, prodotti.findByCodice("T-MART").orElseThrow().getDisponibili());
     }

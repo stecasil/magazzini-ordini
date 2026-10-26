@@ -21,11 +21,15 @@ import java.util.List;
  * Un ordine di un cliente. Le regole di business stanno qui, non nel controller:
  * - si aggiungono righe solo a un ordine CONFERMATO, e ogni riga preleva dalla giacenza;
  * - lo stesso prodotto aggiunto due volte finisce nella stessa riga;
- * - annullare restituisce i pezzi al magazzino; un ordine spedito non si annulla.
+ * - annullare restituisce i pezzi al magazzino; un ordine spedito non si annulla;
+ * - spedizione 9,90 € sotto i 150,00 € di merce scontata, gratuita da 150,00 € in su.
  */
 @Entity
 @Table(name = "ordini")
 public class Ordine {
+
+    public static final BigDecimal SPESE_SPEDIZIONE = new BigDecimal("9.90");
+    public static final BigDecimal SOGLIA_SPEDIZIONE_GRATUITA = new BigDecimal("150.00");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -72,12 +76,25 @@ public class Ordine {
         righe.add(new RigaOrdine(this, prodotto, quantita));
     }
 
-    public BigDecimal totale() {
+    /** Somma dei subtotali scontati delle righe. */
+    public BigDecimal totaleMerce() {
         BigDecimal totale = BigDecimal.ZERO.setScale(2);
         for (RigaOrdine riga : righe) {
             totale = totale.add(riga.subtotale());
         }
         return totale;
+    }
+
+    /** 9,90 € sotto i 150,00 € di merce; gratuita da 150,00 € in su. */
+    public BigDecimal speseSpedizione() {
+        if (totaleMerce().compareTo(SOGLIA_SPEDIZIONE_GRATUITA) >= 0) {
+            return BigDecimal.ZERO.setScale(2);
+        }
+        return SPESE_SPEDIZIONE;
+    }
+
+    public BigDecimal totaleDaPagare() {
+        return totaleMerce().add(speseSpedizione());
     }
 
     public void spedisci() {
