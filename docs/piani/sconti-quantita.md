@@ -9,7 +9,8 @@ Specifica: regole R1–R6 in [../corso/M6-G1.md](../corso/M6-G1.md).
 - La percentuale di sconto è **calcolata** dalla quantità della riga e non viene
   salvata: niente nuove colonne e coerenza automatica con l'unione delle righe (R3).
 - Gli ordini ANNULLATI mostrano gli importi come prima, senza casi speciali.
-- L'arrotondamento `HALF_UP` si applica una volta sola, sul subtotale netto della riga.
+- L'arrotondamento `HALF_UP` si applica una volta sola, sul subtotale netto della riga
+  (non si arrotonda prima lo sconto): 3,10 − 5% = 2,945 → 2,95, non 2,94.
 
 ## Dominio (`model/`)
 
@@ -32,11 +33,14 @@ Specifica: regole R1–R6 in [../corso/M6-G1.md](../corso/M6-G1.md).
 ## Test
 
 - `OrdineTest`: confini 9/10 e 49/50; subtotali scontati e arrotondamento
-  HALF_UP (0,25 × 10 − 5% = 2,375 → 2,38); unione 5 + 5 → 5%; somma della merce;
-  confini 149,99/150,00; soglia confrontata con la merce già scontata.
+  HALF_UP (2,375 → 2,38; 2,945 → 2,95 e 6,885 → 6,89, che distinguono HALF_UP da
+  HALF_EVEN); unione 5 + 5 → 5% e 45 + 5 → 10%; prodotti diversi non si sommano;
+  somma della merce; confini 149,99/150,00; soglia confrontata con la merce già scontata.
 - `OrdineServiceTest`: 25,00 € di merce + 9,90 € = 34,90 €.
-- `PagineTest`: il dettaglio e l'elenco mostrano sconto, spedizione e totale da pagare.
+- `PagineTest`: il dettaglio e l'elenco mostrano sconto, spedizione e totale da pagare;
+  spedizione "Gratuita" e riga "0 %" (COL-1KG × 30 + GUA-L × 1 → 162,80 €).
 - Mutazione manuale `10 → 11` in R1: 6 test diventano rossi.
+- Mutazione manuale `HALF_UP → HALF_EVEN` nel subtotale: 2 test diventano rossi.
 
 ## Verifica
 

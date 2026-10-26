@@ -2,6 +2,7 @@ package com.epicode.magazzino.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -78,7 +79,42 @@ class OrdineTest {
         assertEquals(new BigDecimal("2.38"), rigaDi(rondella, 10).subtotale()); // 2,375 → 2,38
     }
 
+    @Test
+    void ilSubtotaleSiArrotondaHalfUpENonHalfEven() {
+        // 3,10 − 5% = 2,945: HALF_UP → 2,95; HALF_EVEN o sconto arrotondato prima (0,16) → 2,94
+        Prodotto molla = new Prodotto("MOL", "Molla", new BigDecimal("0.31"), 100, 10);
+        assertEquals(new BigDecimal("2.95"), rigaDi(molla, 10).subtotale());
+    }
+
+    @Test
+    void ilSubtotaleConDieciPerCentoSiArrotondaHalfUp() {
+        // 7,65 − 10% = 6,885: HALF_UP → 6,89; HALF_EVEN → 6,88
+        Prodotto dado = new Prodotto("DAD", "Dado", new BigDecimal("0.15"), 100, 10);
+        assertEquals(new BigDecimal("6.89"), rigaDi(dado, 51).subtotale());
+    }
+
     // R3 — conta la quantità totale della riga
+
+    @Test
+    void prodottiDiversiNonSommanoLeQuantita() {
+        Ordine ordine = new Ordine("Rossi", ADESSO);
+        ordine.aggiungiRiga(viti, 5);
+        ordine.aggiungiRiga(guanti, 5);
+        assertEquals(2, ordine.getRighe().size());
+        assertEquals(0, ordine.getRighe().get(0).percentualeSconto());
+        assertEquals(0, ordine.getRighe().get(1).percentualeSconto());
+    }
+
+    @Test
+    void unaRigaUnitaCheArrivaACinquantaPrendeIlDieciPerCento() {
+        Ordine ordine = new Ordine("Rossi", ADESSO);
+        ordine.aggiungiRiga(guanti, 45);
+        ordine.aggiungiRiga(guanti, 5);
+        RigaOrdine riga = ordine.getRighe().get(0);
+        assertEquals(50, riga.getQuantita());
+        assertEquals(10, riga.percentualeSconto());
+        assertEquals(new BigDecimal("144.00"), riga.subtotale());
+    }
 
     @Test
     void cinquePiuCinqueStessoProdottoPrendeIlCinquePerCento() {
@@ -199,5 +235,89 @@ class OrdineTest {
     @Test
     void clienteObbligatorio() {
         assertThrows(RichiestaNonValidaException.class, () -> new Ordine("  ", ADESSO));
+        assertThrows(RichiestaNonValidaException.class, () -> new Ordine(null, ADESSO));
+    }
+
+    @Test
+    void unNuovoOrdineEConfermatoEIlClienteVieneRipulito() {
+        Ordine ordine = new Ordine("  Rossi srl ", ADESSO);
+        assertEquals(StatoOrdine.CONFERMATO, ordine.getStato());
+        assertEquals("Rossi srl", ordine.getCliente());
+        assertEquals(ADESSO, ordine.getCreatoIl());
+        assertTrue(ordine.getRighe().isEmpty());
+    }
+
+    @Test
+    void spedireCambiaLoStato() {
+        Ordine ordine = new Ordine("Rossi", ADESSO);
+        ordine.aggiungiRiga(viti, 1);
+        ordine.spedisci();
+        assertEquals(StatoOrdine.SPEDITO, ordine.getStato());
+    }
+
+    @Test
+    void unOrdineSpeditoNonSiSpedisceDueVolte() {
+        Ordine ordine = new Ordine("Rossi", ADESSO);
+        ordine.aggiungiRiga(viti, 1);
+        ordine.spedisci();
+        assertThrows(OperazioneNonConsentitaException.class, ordine::spedisci);
+    }
+
+    @Test
+    void unOrdineAnnullatoNonSiSpedisce() {
+        Ordine ordine = new Ordine("Rossi", ADESSO);
+        ordine.aggiungiRiga(viti, 1);
+        ordine.annulla();
+        assertThrows(OperazioneNonConsentitaException.class, ordine::spedisci);
+        assertEquals(StatoOrdine.ANNULLATO, ordine.getStato());
+    }
+
+    @Test
+    void nonSiAggiungonoRigheAUnOrdineAnnullatoENonSiToccaLaGiacenza() {
+        Ordine ordine = new Ordine("Rossi", ADESSO);
+        ordine.aggiungiRiga(viti, 1);
+        ordine.annulla();
+        assertThrows(OperazioneNonConsentitaException.class, () -> ordine.aggiungiRiga(viti, 1));
+        assertEquals(100, viti.getDisponibili());
+    }
+
+    @Test
+    void conScortaInsufficienteLaRigaNonVieneAggiunta() {
+        Ordine ordine = new Ordine("Rossi", ADESSO);
+        assertThrows(ScortaInsufficienteException.class, () -> ordine.aggiungiRiga(trapano, 6));
+        assertTrue(ordine.getRighe().isEmpty());
+        assertEquals(5, trapano.getDisponibili());
+    }
+
+    @Test
+    void unaRigaConQuantitaZeroNonValida() {
+        Ordine ordine = new Ordine("Rossi", ADESSO);
+        assertThrows(RichiestaNonValidaException.class, () -> ordine.aggiungiRiga(viti, 0));
+        assertTrue(ordine.getRighe().isEmpty());
+    }
+
+    @Test
+    void leRigheNonSiModificanoDallEsterno() {
+        Ordine ordine = new Ordine("Rossi", ADESSO);
+        ordine.aggiungiRiga(viti, 1);
+        assertThrows(UnsupportedOperationException.class, () -> ordine.getRighe().clear());
+    }
+
+    @Test
+    void annullareRestituisceLaQuantitaUnitaDellaRiga() {
+        Ordine ordine = new Ordine("Rossi", ADESSO);
+        ordine.aggiungiRiga(viti, 5);
+        ordine.aggiungiRiga(viti, 5);
+        assertEquals(90, viti.getDisponibili());
+        ordine.annulla();
+        assertEquals(100, viti.getDisponibili());
+    }
+
+    @Test
+    void unOrdineSenzaRigheHaMerceZeroEPagaLaSpedizione() {
+        Ordine ordine = new Ordine("Rossi", ADESSO);
+        assertEquals(new BigDecimal("0.00"), ordine.totaleMerce());
+        assertEquals(new BigDecimal("9.90"), ordine.speseSpedizione());
+        assertEquals(new BigDecimal("9.90"), ordine.totaleDaPagare());
     }
 }
